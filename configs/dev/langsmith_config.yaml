@@ -1,0 +1,33 @@
+# LangSmith configuration for monitoring and debugging LLM calls
+# Get your API key from https://smith.langchain.com/
+
+# Enable/disable tracing (set to true to enable)
+# Supports both LANGSMITH_TRACING and LANGCHAIN_TRACING_V2 env vars
+tracing_enabled: true
+
+# Project name for organizing traces in LangSmith
+# LangSmith automatically creates projects when first used
+# If you want to use an existing project (like "default"), set it here
+# If the project doesn't exist, it will be created automatically on first trace
+# Supports both LANGSMITH_PROJECT and LANGCHAIN_PROJECT env vars
+project_name: "dota-drafts"  # Change to "default" to use existing default project
+
+# Optional: LangSmith endpoint (defaults to https://api.smith.langchain.com)
+# endpoint: "https://api.smith.langchain.com"
+
+# Optional: Set tags for filtering traces in LangSmith dashboard
+# Tags are strings that help you filter and organize traces
+# Example: tags: ["production", "rag", "draft-analysis"]
+# You can filter by tags in LangSmith UI: https://smith.langchain.com/
+tags: ["dota-drafts", "rag"]
+
+# Note: Metadata is set per-invocation in code, not here
+# To add metadata to specific LLM calls, use callbacks or pass metadata directly
+# Example in code:
+#   from langchain_core.callbacks import CallbackManager
+#   from langsmith import traceable
+#   
+#   @traceable(metadata={"version": "0.0.1", "environment": "dev"})
+#   def my_function():
+#       ...
+

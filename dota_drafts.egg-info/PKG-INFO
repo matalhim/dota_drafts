@@ -1,0 +1,203 @@
+Metadata-Version: 2.4
+Name: dota_drafts
+Version: 0.0.1
+Author-email: Alhimovich Matvei <matalhim@gmail.com>
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: terminal_app@ git+https://github.com/usecoreai/terminal_app.git
+Requires-Dist: pytest
+Requires-Dist: pytest-mock
+Requires-Dist: typer
+Requires-Dist: watchdog
+Requires-Dist: python-dotenv
+Requires-Dist: httpx
+Requires-Dist: pydantic
+Requires-Dist: rich
+Requires-Dist: tqdm
+Requires-Dist: Pillow
+Requires-Dist: chromadb
+Requires-Dist: llama-index-core
+Requires-Dist: llama-index-readers-web
+Requires-Dist: llama-index-embeddings-huggingface
+Requires-Dist: llama-index-vector-stores-chroma
+Requires-Dist: llama-index-program-openai; python_version >= "3.11" and platform_system != "Darwin"
+Requires-Dist: transformers
+Requires-Dist: sentence-transformers
+Requires-Dist: torch
+Requires-Dist: opencv-python-headless
+Requires-Dist: pytesseract
+Requires-Dist: langchain
+Requires-Dist: langchain-core
+Requires-Dist: langchain-community
+Requires-Dist: langchain-text-splitters
+Requires-Dist: langsmith
+Requires-Dist: langchain-google-genai
+Requires-Dist: langchain-openai
+Requires-Dist: langchain-together
+Requires-Dist: langchain-huggingface
+Requires-Dist: streamlit
+Requires-Dist: st-img-pastebutton
+
+# Dota 2 Draft Analysis System
+
+## Description
+
+The system analyzes draft screenshots and predicts winners based on:
+
+- team statistics
+- hero win rates for each team
+- match history and form trends
+- draft analysis with hero synergy
+
+## Installation
+
+### 1. Create environment
+
+```bash
+conda create -n dd python=3.11 -y
+conda activate dd
+```
+
+### 2. Install project
+
+```bash
+pip install -e . --config-settings editable_mode=strict
+```
+
+### 3. Setup API keys
+
+Create files in `configs/`:
+
+**`configs/.google_api_key.env`**:
+
+```env
+GOOGLE_API_KEY=ur_google_api_key
+```
+
+**`configs/.langchain_api_key.env`** (optional, for LangSmith):
+
+```env
+LANGCHAIN_API_KEY=ur_langchain_api_key
+```
+
+## Architecture
+
+```
+┌─────────────────┐
+│  OpenDota API   │  ← Dota 2 data source
+│                 │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  data loading   │
+│  and caching    │  
+│                 │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  chroma db      │  ← Vector database
+│                 │     - Text embeddings
+│                 │     - CLIP image embeddings
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│ Analysing pipeline                      │
+│                                         │
+│  1. gemini → extract teams/players      │
+│     from screenshot                     │
+│                                         │
+│  2. rag search → refine teams/players   │
+│     using player data                   │
+│                                         │
+│  3. rag search (CLIP) → compare hero    │
+│     icons from screenshot with rag      │
+│     image embeddings                    │
+│                                         │
+│  4. gemini → verify and refine hero     │
+│     suggestions                         │
+│                                         │
+│  5. rag search → get team statistics,   │
+│     hero performance data               │
+│                                         │
+│  6. gemini → final analysing &          │
+│     winner prediction                   │
+└─────────────────────────────────────────┘
+```
+
+## Data Sources
+
+### OpenDota API
+
+The system uses [OpenDota API](https://docs.opendota.com/) to fetch:
+
+heroes, teams, pro players, pro matches
+
+## Chroma Index Building
+
+using huggingface embeddings(`sentence-transformers/all-MiniLM-L6-v2`) for text documents and creating two collections:
+
+- text documents with embeddings (heroes, teams, players, matches)
+
+- hero images with CLIP embeddings
+
+## Tests
+
+[![hero-classification-comparison.png](https://i.postimg.cc/6pJTSBbd/hero-classification-comparison.png)](https://postimg.cc/56gxQWV0)
+
+### FISSURE PLAYGROUND 2 Playoffs
+
+| Round | Winner | Loser | Predict | Score | Succes Predict |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **UPPER BRACKET** | | | | | |
+| Quarterfinals | **Team Yandex** | Tundra Esports | 0 - 3 | 2 - 1 | 1/3 |
+| | **MOUZ** | Team Falcons | 0 - 2 | 2 - 0 | 0/2 |
+| | **Team Spirit** | HEROIC | 1 - 1 | 2 - 0 | 1/2 |
+| | **BetBoom Team** | Team Liquid | 1 - 2 | 2 - 1 | 2/3 |
+| Semifinals | **Team Yandex** | MOUZ | 1 - 2 | 2 - 1 | 1/3 |
+| | **BetBoom Team** | Team Spirit | 1 - 2 | 2 - 1 | 1/3 |
+| Final | **BetBoom Team** | Team Yandex | 3 - 0 | 2 - 1 | 2/3 |
+| | *BetBoom Team to Grand Final* | *Team Yandex to Lower Bracket Final* | | | |
+| **LOWER BRACKET** | | | | | |
+| Round 1 | **Team Falcons** | Tundra Esports | 2 - 1 | 2 - 1 | 2/3 |
+| | **Team Liquid** | HEROIC | 1 - 2 | 2 - 1 | 1/3 |
+| Quarterfinals | **Team Falcons** | Team Spirit | 3 - 0 | 2 - 1 | 2/3 |
+| | **Team Liquid** | MOUZ | 3 - 0 | 2 - 1 | 2/3 |
+| Semifinal | **Team Falcons** | Team Liquid | 3 - 0 | 2 - 1 | 2/3 |
+| Final | **Team Falcons** | Team Yandex | 2 - 0 | 2 - 0 | 2/2 |
+| | *Team Falcons to Grand Final* | *Team Yandex eliminated* | | | |
+| **GRAND FINAL** | | | | | |
+| | **Team Falcons** | BetBoom Team | 4 - 0 | 3 - 1 | 3/4 |
+
+[![output.png](https://i.postimg.cc/BZctLrmz/output.png)](https://postimg.cc/z3vq4cZw)
+
+## Web Interface (Streamlit)
+
+Красивый веб-интерфейс для анализа драфтов через браузер.
+
+### Запуск
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Приложение откроется в браузере по адресу `http://localhost:8501`
+
+### Возможности
+
+- 📸 **Drag & Drop** загрузка скриншотов
+- 🎨 **Красивый UI** с градиентами и карточками
+- 📊 **Детальный анализ** драфта с предсказанием победителя
+- 📈 **Статистика команд** из RAG базы данных
+- ⚙️ **Настройки** провайдера и модели
+
+Подробнее см. [STREAMLIT_README.md](STREAMLIT_README.md)
+
+## Links
+
+- [OpenDota API Documentation](https://docs.opendota.com/)
+- [Chroma Documentation](https://docs.trychroma.com/)
+- [LlamaIndex Documentation](https://docs.llamaindex.ai/)
+- [LangChain Documentation](https://python.langchain.com/)

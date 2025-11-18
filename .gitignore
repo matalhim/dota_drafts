@@ -1,0 +1,16 @@
+build/
+.egg-info/
+__pycache__/
+.ruff_cache/
+.vscode/
+.pytest_cache/
+__pycache__/
+.google_api_key.env
+.langchain_api_key.env
+.env
+.git
+
+data/chroma/
+data/images/
+data/input/
+data/opendota/

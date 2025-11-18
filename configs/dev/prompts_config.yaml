@@ -1,0 +1,168 @@
+# Prompts configuration for LLM queries
+# All prompts used in the RAG system
+
+# System prompt for RAG chain
+rag_system_prompt: |
+  Use the attached facts from the context
+  to answer the question. If something is not in the context, say so.
+  If the question is about drafts/matches, pay attention to team names, players, heroes, dates and scores.
+
+extraction_prompt: |
+  Your task is to analyze the provided screenshot and identify player nicknames.
+
+  IMPORTANT: DO NOT identify heroes! Heroes will be identified separately using an image database. Your task is to identify teams, players and heroes.
+
+  The screenshot shows two teams - left and right. Players are displayed with their nicknames.
+
+  Form your response in strict JSON format, where:
+  - 'teams': List of two strings with team names [left team, right team].
+  - 'left_team_players': List of left team player nicknames (in order left to right, top to bottom).
+  - 'right_team_players': List of right team player nicknames (in order left to right, top to bottom).
+  - 'left_team_heroes': [Gyrocopter, bane, puck, muerta, doom] (empty list, heroes will be identified separately)
+  - 'right_team_heroes': [templar assassin, slardar, warlock, bounty hunter, Timbersaw] (empty list, heroes will be identified separately)
+
+  Example expected output:
+  {
+    "teams": ["left team", "right team"],
+    "left_team_players": ["player nickname 1", "player nickname 2", "player nickname 3", "player nickname 4", "player nickname 5"],
+    "right_team_players": ["player nickname 1", "player nickname 2", "player nickname 3", "player nickname 4", "player nickname 5"],
+    "left_team_heroes": [hero1, hero2, hero3, hero4, hero5],
+    "right_team_heroes": [hero1, hero2, hero3, hero4, hero5]
+  }
+
+  Process only visible information on the screenshot. Return ONLY valid JSON without additional text.
+
+# Prompt for detecting hero bounding boxes on draft screenshot
+hero_bbox_prompt: |
+  You are a hero icon recognition model on a Dota 2 draft screenshot. Identify coordinates of all picked heroes for left (radiant) and right (dire) teams.
+
+  Coordinate format is [x, y, width, height], where (x, y) is the top-left corner of the FULL hero block (pick number + portrait + player nickname). Coordinates in pixels of the source image.
+
+  Return ONLY valid JSON:
+  {
+    "left_team_heroes_bboxes": [[x1, y1, w1, h1], ...],  // left to right, top to bottom
+    "right_team_heroes_bboxes": [[x1, y1, w1, h1], ...]  // left to right, top to bottom
+  }
+
+  IMPORTANT:
+
+  - Each team has 5 heroes. Specify exactly 5 rectangles for each side (use null if block is completely hidden).
+  - One rectangle includes the entire element: pick number on top, hero portrait, player nickname at bottom.
+  - Order in arrays should match screen position (left to right, top to bottom), not pick numbers.
+  - Do not describe in text, return only JSON.
+
+# Prompt for Gemini to suggest heroes based on screenshot and RAG context
+hero_suggestion_prompt: |
+  Analyze the provided draft screenshot and suggest a list of heroes for each team
+
+  Use ALL available sources for maximum accurate hero recognition (in order of importance):
+  1. Official and open internet sources:
+     - https://www.dota2.com/heroes (official Valve website)
+     - https://liquipedia.net/dota2/Portal:Heroes (Liquipedia)
+     - https://dota2.fandom.com/wiki/Heroes (Dota 2 Wiki)
+     - https://www.dotabuff.com/heroes (Dotabuff)
+  2. RAG CONTEXT below (hero descriptions from project internal database)
+  3. Reference hero images vectorized in Chroma (dota_hero_images collection). Compare icons on screenshot with these reference images.
+
+  RAG CONTEXT (use after internet sources):
+  ---
+  {rag_context}
+  ---
+
+
+  Form your response in strict JSON format:
+  {{
+    "left_team_heroes": ["hero1", "hero2", "hero3", "hero4", "hero5"],
+    "right_team_heroes": ["hero1", "hero2", "hero3", "hero4", "hero5"]
+  }}
+
+
+  CRITICALLY IMPORTANT:
+  - Use EXACT hero names from provided context or from official sources (e.g., "Puck", "Faceless Void", "Alchemist", "Dazzle")
+  - Visually compare hero icons on the screenshot with known Dota 2 hero images
+  - If unsure about a hero, specify "Unknown" instead of the name
+  - Hero order should match their screen position (top to bottom)
+  - Use English hero names (as in official sources)
+  - Return ONLY valid JSON without additional text
+
+# Prompt for draft analysis and winner prediction
+# Uses placeholders: {left_team}, {right_team}, {left_heroes}, {right_heroes}, {team_statistics}
+draft_analysis_prompt_template: |
+
+  TEAMS:
+  - Left team: {left_team}
+  - Right team: {right_team}
+
+  DRAFT:
+  - Left team ({left_team}): {left_heroes}
+  - Right team ({right_team}): {right_heroes}
+
+  FULL TEAM INFORMATION FROM RAG (use ALL information for analysis):
+  ---
+  {team_statistics}
+  ---
+
+  You are provided with information from the knowledge base:
+  - Full team information
+  - History of all recent matches with details (lineups, score, result)
+  - Full match documents
+  - Player information
+  - Hero data in team matches
+  
+  Your task is to ANALYZE ALL this information and make a decision based on SPECIFIC data.
+
+  Your task:
+  1. Determine which team is most likely to win by analyzing ALL provided information
+  2. Make a brief and confident report with SPECIFIC data from RAG
+
+  RESPONSE FORMAT:
+  1. In the first line specify: "Winner: [team name]"
+
+  and a couple of short arguments why this team's heroes are better than the other team's, and why it plays better
+
+  IMPORTANT:
+  - Analyze the provided information 
+  - Do not base your answer on team rating or cite individual games, there should be a complete analysis of information
+  - Base your analysis on team game history, how much they win and lose. Do not write general phrases like higher rating, or do not reference a specific match or player. Analyze all information and make good general conclusions. For example, this team wins most difficult matches, or this team picked their strong heroes. You can specifically write that this hero is currently very strong and often wins. Or for example this hero counters heroes from the enemy pick.
+  - Do not use general phrases like "strong lineup" or "good synergy" without specific examples from history
+
+# Prompt for refining draft with user feedback
+refine_draft_feedback_prompt: |
+  You are a Dota 2 draft analysis system. The user has indicated errors in team and hero identification.
+
+  CURRENT IDENTIFICATION:
+  - Left team: {left_team}
+  - Right team: {right_team}
+  - Left team heroes: {left_heroes}
+  - Right team heroes: {right_heroes}
+
+  USER FEEDBACK:
+  {user_feedback}
+
+  Your task is to correct team and hero identification based on user feedback and screenshot.
+
+  Return ONLY valid JSON in format:
+  {{
+    "teams": ["left_team", "right_team"],
+    "left_team_heroes": ["hero1", "hero2", "hero3", "hero4", "hero5"],
+    "right_team_heroes": ["hero1", "hero2", "hero3", "hero4", "hero5"]
+  }}
+
+  Use English hero names (as in official Dota 2 sources).
+  Return ONLY JSON without additional text.
+
+# Prompt for answering follow-up chat questions
+followup_question_prompt: |
+  User asks a question about current draft analysis:
+
+  {context}
+
+  User question: {question}
+
+  Answer the user's question using ONLY information from provided data about teams {left_team} and {right_team}, as well as heroes {heroes_list}. Be specific and use facts from match history and team statistics.
+
+  IMPORTANT:
+  - Use ONLY information about teams {left_team} and {right_team}, as well as heroes from current draft
+  - If you don't have information about a specific hero or team, formulate it formally: "Team has not played this hero in recent matches" or "Statistics for this hero for this team are not available"
+  - Use formal formulations like "in available data", "in match history", "according to available statistics"
+  - If information is missing, just state the fact without explaining reasons

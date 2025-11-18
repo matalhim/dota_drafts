@@ -1,0 +1,4 @@
+start_date: 2025-08-16
+end_date: 2025-11-16
+max_matches: 10000
+request_delay_s: 0.2

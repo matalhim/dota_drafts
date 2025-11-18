@@ -1,0 +1,15 @@
+GLOB_CONFIG_DIR: configs
+MODE_CONFIG_DIR: configs/dev
+
+LOGGING_DIR: logging
+LOGGING_SUFFIX: terminal_app
+LOGGING_FILE_MODE: w
+TERMINAL_APP_LOGGER: False
+INIT_FOLDERS: False
+
+DATA_DIR: data
+
+OPEN_DOTA_DATA_DIR: "data/opendota"
+IMAGES_DIR: "data/images"
+INPUT_DIR: "data/input"
+CHROMA_DIR: "data/chroma"
