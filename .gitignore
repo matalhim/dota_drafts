@@ -9,7 +9,7 @@ __pycache__/
 .langchain_api_key.env
 .env
 .git
-
+.egg-info/
 data/chroma/
 data/images/
 data/input/
