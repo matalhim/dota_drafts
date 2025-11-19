@@ -1,5 +1,0 @@
-build
-configs
-data
-dota_drafts
-streamlit_components
